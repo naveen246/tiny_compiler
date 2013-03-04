@@ -1,0 +1,4 @@
+<expression> ::= <term> [<addop> <term>]*
+<term> ::= <factor>  [ <mulop> <factor ]*
+<factor> ::= <number> | (<expression>) | <variable>
+<assignment> ::= <Ident> = <Expression>
