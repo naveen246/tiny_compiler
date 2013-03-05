@@ -50,7 +50,7 @@ char GetName(){
 
 //get a number
 char GetNum(){
-    if(!isdigit(Look)) Expected("Name");
+    if(!isdigit(Look)) Expected("Integer");
     int ret = Look;
     GetChar();
     return ret;   
@@ -58,6 +58,14 @@ char GetNum(){
 
 int isAddop(char c){
     return c == '+' || c == '-';
+}
+
+int IsWhite(char c){
+    return c == ' ' || c == '\t';
+}
+
+void SkipWhite(){
+    while(IsWhite(Look)) GetChar();   
 }
 
 //output a string with tab
