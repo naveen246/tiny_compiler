@@ -8,6 +8,44 @@
 
 char Look;
 
+//list to hold references of labels to be freed later
+typedef struct node{
+    char *label;
+    struct node *next;
+}Node;
+
+Node *list;
+
+Node *CreateNode(){
+    Node *n = malloc(sizeof(Node));
+    if(n == NULL) 
+	printf("could not create node\n");
+    else{
+	n->label = NULL;
+	n->next = NULL;
+    }
+    return n;
+}
+
+void AppendNode(char *label){
+    Node *new = CreateNode();
+    if(new){
+	new->label = label;
+	new->next = list->next;
+	list->next = new;
+    }
+}
+
+void DeleteList(){
+    while(list->next != NULL){
+	Node *temp = list->next;
+	free(temp->label);
+	list->next = temp->next;
+	free(temp);
+    }
+    free(list);
+}
+
 void GetChar(){
     Look = getchar();
 }
@@ -83,6 +121,7 @@ void EmitLn(char *s){
 char *NewLabel(){
     static int LCount = 0;
     char *label = malloc(MAX_STR_LEN * sizeof(char));
+    AppendNode(label);
     snprintf(label, sizeof(label), "L%d", LCount);
     LCount++;
     return label;
@@ -267,10 +306,12 @@ void DoProgram(){
 
 void Init(){
     GetChar();
+    list = CreateNode();
 }
 
 int main(){
     Init();   
     DoProgram();
+    DeleteList();
     return 0;
 }
