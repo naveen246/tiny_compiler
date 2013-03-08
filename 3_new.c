@@ -49,13 +49,13 @@ void SkipWhite(){
 //match a specific input character
 void Match(char c){
     if(Look != c) {
-	char buf[MAX_STR_LEN];
-	snprintf(buf, sizeof(buf), "\"%c\"", c);
-	Expected(buf);
+    	char buf[MAX_STR_LEN];
+    	snprintf(buf, sizeof(buf), "\"%c\"", c);
+    	Expected(buf);
     }
     else{
-	GetChar();
-	SkipWhite();
+    	GetChar();
+    	SkipWhite();
     }
 }
 
@@ -64,8 +64,8 @@ char *GetName(){
     if(!isalpha(Look)) Expected("Name");
     int i;
     for(i = 0; i < MAX_STR_LEN && isalnum(Look); i++){
-	tokenStr[i] = toupper(Look);
-	GetChar();
+    	tokenStr[i] = toupper(Look);
+    	GetChar();
     }
     tokenStr[i] = '\0';
     SkipWhite();
@@ -77,8 +77,8 @@ char *GetNum(){
     if(!isdigit(Look)) Expected("Integer");
     int i;
     for(i = 0; i < MAX_STR_LEN && isdigit(Look); i++){
-	tokenStr[i] = Look;
-	GetChar();
+    	tokenStr[i] = Look;
+    	GetChar();
     }
     tokenStr[i] = '\0';
     SkipWhite();
@@ -102,29 +102,29 @@ void Ident(){
     strcpy(name, GetName());
     char buf[MAX_STR_LEN];
     if(Look == '('){
-	Match('(');
-	Match(')');
-	snprintf(buf, sizeof(buf), "BSR %s", name);
+    	Match('(');
+    	Match(')');
+    	snprintf(buf, sizeof(buf), "BSR %s", name);
     }
     else
-	snprintf(buf, sizeof(buf), "MOVE %s(PC),DO", name);
+    	snprintf(buf, sizeof(buf), "MOVE %s(PC),DO", name);
     EmitLn(buf);
 }
 
 //Parse and Translate a Math Factor
 void Factor(){
     if(Look == '('){
-	Match('(');
-	Expression();
-	Match(')');
+    	Match('(');
+    	Expression();
+    	Match(')');
     }
     else if(isalpha(Look)){
-	Ident();   
+	   Ident();   
     }
     else{
-	char buf[MAX_STR_LEN];
-	snprintf(buf, sizeof(buf), "MOVE #%s,DO", GetNum());
-	EmitLn(buf);   
+    	char buf[MAX_STR_LEN];
+    	snprintf(buf, sizeof(buf), "MOVE #%s,DO", GetNum());
+    	EmitLn(buf);   
     }
 }
 
@@ -148,13 +148,11 @@ void Divide(){
 void Term(){
     Factor();
     while(Look == '*' || Look == '/'){
-	EmitLn("MOVE D0,-(SP)");
-	switch(Look){
-	    case '*' : Multiply();
-		       break;
-	    case '/' : Divide();
-	               break;
-	}
+    	EmitLn("MOVE D0,-(SP)");
+    	switch(Look){
+    	    case '*' : Multiply(); break;
+    	    case '/' : Divide();   break;
+    	}
     }
 }
 
@@ -178,13 +176,13 @@ void Expression(){
     if(isAddop(Look)) EmitLn("CLR D0");
     else Term();   
     while(isAddop(Look)){
-	EmitLn("MOVE D0,-(SP)");
-	switch(Look){
-	    case '+' : Add();
-		       break;
-	    case '-' : Subtract();
-		       break;
-	}
+    	EmitLn("MOVE D0,-(SP)");
+    	switch(Look){
+    	    case '+' : Add();
+    		       break;
+    	    case '-' : Subtract();
+    		       break;
+    	}
     }
 }
 

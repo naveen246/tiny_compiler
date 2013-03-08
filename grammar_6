@@ -1,0 +1,38 @@
+<b-expression>::= <b-term> [<orop> <b-term>]*
+<b-term>      ::= <not-factor> [AND <not-factor>]*
+<not-factor>  ::= [NOT] <b-factor>
+<b-factor>    ::= <b-literal> | <b-variable> | (<b-expression>) | <relation>
+
+<relation> ::= <expression> <relop> <expression> 
+
+<expression>    ::= <term> [<addop> <term>]*
+<term>          ::= <signed factor> [<mulop> factor]*
+<signed factor> ::= [<addop>] <factor>
+<factor>        ::= <integer> | <variable> | (<expression>)
+
+<relop> ::= =, <> (or !=), <, >, <=, and >=
+
+          Level   Syntax Element     Operator
+
+          0       factor             literal, variable
+          1       signed factor      unary minus
+          2       term               *, /
+          3       expression         +, -
+          4       b-factor           literal, variable, relop
+          5       not-factor         NOT
+          6       b-term             AND
+          7       b-expression       OR, XOR
+
+//          IF ((((((A + B + C) < 0 ) AND ....
+Problem : definitions of both arithmetic and Boolean factors permit the use of   parenthesized  expressions.    Since  the  definitions   are recursive,  we  can  end  up  with  any  number   of   levels  of parentheses, and the  parser  can't know which kind of expression it's dealing with
+
+Solution : 
+ <b-expression> ::= <b-term> [<orop> <b-term>]*
+ <b-term>       ::= <not-factor> [AND <not-factor>]*
+ <not-factor>   ::= [NOT] <b-factor>
+ <b-factor>     ::= <b-literal> | <b-variable> | <relation>
+ <relation>     ::= <expression> [<relop> <expression]
+ <expression>   ::= <term> [<addop> <term>]*
+ <term>         ::= <signed factor> [<mulop> factor]*
+ <signed factor>::= [<addop>] <factor>
+ <factor>       ::= <integer> | <variable> | (<b-expression>)
