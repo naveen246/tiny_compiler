@@ -1,0 +1,43 @@
+grammar for tiny compiler :
+
+	<program> ::= PROGRAM <top-level decl> <main> '.'
+
+	<top-level decls> ::= ( <data declaration> )*
+
+    <data declaration> ::= VAR <var-list>
+
+    <var-list> ::= <var> (, <var> )*
+
+    <var> ::= <ident> [ = <integer> ]
+
+    <main> ::= BEGIN <block> END
+
+	<block> ::= ( <statement> )*
+
+	<statement> ::= <if> | <while> | <assignment>
+
+	<assignment> ::= <ident> = <bool-expr>
+
+	<expression> ::= <first term> ( <addop> <term> )*
+
+	<first term> ::= <first factor> <rest>
+
+	<term> ::= <factor> <rest>
+
+	<rest> ::= ( <mulop> <factor> )*
+
+	<first factor> ::= [ <addop> ] <factor>
+
+	<factor> ::= <var> | <number> | ( <bool-expr> )
+
+	<bool-expr> ::= <bool-term> ( <orop> <bool-term> )*
+
+	<bool-term> ::= <not-factor> ( <andop> <not-factor> )*
+
+	<not-factor> ::= [ '!' ] <relation>
+
+	<relation> ::= <expression> [ <relop> <expression> ]
+
+	<if> ::= IF <bool-expression> <block> [ ELSE <block>] ENDIF
+
+    <while> ::= WHILE <bool-expression> <block> ENDWHILE

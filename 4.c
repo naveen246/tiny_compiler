@@ -63,8 +63,8 @@ int GetNum(){
     if(!isdigit(Look)) Expected("Integer");
     int value = 0;
     while(isdigit(Look)){
-	value = value * 10 + (Look - '0');
-	GetChar();
+    	value = value * 10 + (Look - '0');
+    	GetChar();
     }
     return value;   
 }
