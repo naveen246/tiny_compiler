@@ -5,19 +5,20 @@
 #include <ctype.h>
 
 #define MAX_STR_LEN 500
-#define ALPHA_NO 26
+#define ST_LEN 100
 #define LABEL_SIZE 5
 #define TOKEN_LEN 16
-#define KW_LEN 9
+#define KW_LEN 11
 
-char *KWlist[] = {"IF", "ELSE", "ENDIF", "WHILE", "ENDWHILE", 
-                    "VAR", "BEGIN", "END", "PROGRAM"};
-char *KWcode = "xilewevbep";
+char KWlist[][TOKEN_LEN + 1] = {"IF", "ELSE", "ENDIF", "WHILE", "ENDWHILE", 
+        "READ", "WRITE", "VAR", "BEGIN", "END", "PROGRAM"};
+char *KWcode = "xileweRWvbep";
 
 char Token;                     //Encoded Token
 char Value[TOKEN_LEN + 1];      //Unencoded Token
 char Look;                      //Lookahead character
-char ST[ALPHA_NO + 1] = { ' ' };//Symbol Table
+char ST[ST_LEN][TOKEN_LEN + 1]; //Symbol Table
+char SType[ST_LEN];
 
 void Expression();
 void Block();
@@ -46,8 +47,23 @@ void Expected(char *s){
     Abort(buf);   
 }
 
-int InTable(char name){
-    return ST[toupper(name) - 'A'] == 'v';
+int InTable(char *name){
+    return Lookup(ST, name, ST_LEN) != -1;
+}
+
+//Add a New Entry to Symbol Table
+void AddEntry(char *symbol, char T){
+    static int stIndex = 0;
+    if(InTable(symbol)){
+        char buf[MAX_STR_LEN];
+        snprintf(buf, sizeof(buf), "Duplicate Identifier %s", symbol);
+        Abort(buf);
+    }
+    if(stIndex == ST_LEN)
+        Abort("Symbol Table full");
+    strncpy(ST[stIndex], symbol, TOKEN_LEN);
+    SType[stIndex] = T;
+    stIndex++;
 }
 
 //match a specific input character
@@ -73,9 +89,9 @@ void EmitLn(char *s){
 }
 
 //Report an Undefined Identifier
-void Undefined(char n){
+void Undefined(char *n){
     char buf[MAX_STR_LEN];
-    snprintf(buf, sizeof(buf), "Undefined Identifier %c", n);
+    snprintf(buf, sizeof(buf), "Undefined Identifier %s", n);
     Abort(buf);
 }
 
@@ -101,10 +117,10 @@ void LoadConst(int n){
 }
 
 //Load a Variable to Primary Register
-void LoadVar(char Name){
+void LoadVar(char *Name){
     if(!InTable(Name)) Undefined(Name);
     char buf[MAX_STR_LEN];
-    snprintf(buf, sizeof(buf), "MOVE %c(PC),D0", Name);
+    snprintf(buf, sizeof(buf), "MOVE %s(PC),D0", Name);
     EmitLn(buf);
 }
 
@@ -137,10 +153,10 @@ void PopDiv(){
 }
 
 //Store Primary to Variable
-void Store(char Name){
+void Store(char *Name){
     if(!InTable(Name)) Undefined(Name);
     char buf[MAX_STR_LEN];
-    snprintf(buf, sizeof(buf), "LEA %c(PC),A0", Name);
+    snprintf(buf, sizeof(buf), "LEA %s(PC),A0", Name);
     EmitLn(buf);
     EmitLn("MOVE D0,(A0)");
 }
@@ -209,17 +225,43 @@ void BranchFalse(char *L){
     EmitLn(buf);
 }
 
+//Set D0 If Compare was <=
+void SetLessOrEqual(){
+    EmitLn("SGE D0");
+    EmitLn("EXT D0");
+}
+
+//Set D0 If Compare was >=
+void SetGreaterOrEqual(){
+    EmitLn("SLE D0");
+    EmitLn("EXT D0");
+}
+
+//Read Variable to Primary Register
+void ReadVar(){
+    EmitLn("BSR READ");
+    Store(Value);
+}
+
+//Write Variable from Primary Register
+void WriteVar(){
+    EmitLn("BSR WRITE");
+}
+
 /**********************************/
 /*End of code  generation routines*/
 /**********************************/
 
 //get an identifier
-//store id in Value
 void GetName(){
     NewLine();
     if(!isalpha(Look)) Expected("Name");
-    char ret = toupper(Look);
-    GetChar();
+    int i;
+    for(i = 0; i < TOKEN_LEN && isalnum(Look); i++){
+        Value[i] = toupper(Look);
+        GetChar();
+    }
+    Value[i] = '\0';
     SkipWhite();
 }
 
@@ -237,10 +279,10 @@ int GetNum(){
 }
 
 //Table Lookup, if found return index else -1
-int Lookup(char *Table[], char *value, int size){
+int Lookup(char Table[][TOKEN_LEN + 1], char *val, int size){
     int i;
     for(i = 0; i < size; i++){
-        if(strcmp(Table[i], value) == 0) return i;
+        if(strcmp(Table[i], val) == 0) return i;
     }
     return -1;
 }
@@ -248,7 +290,7 @@ int Lookup(char *Table[], char *value, int size){
 //Get an Identifier and Scan it for Keywords
 void Scan(){
     GetName();
-    Token = KWcode[Lookup(KWlist, Value, KW_LEN)];
+    Token = KWcode[Lookup(KWlist, Value, KW_LEN) + 1];
 }
 
 //Match a Specific Input String
@@ -301,8 +343,10 @@ void NewLine(){
 }
 
 void Init(){
-    if(IsWhite(Look)) SkipWhite();
-    else GetChar();
+    memset(ST, '\0', sizeof(ST));
+    memset(SType, '\0', ST_LEN);
+    GetChar();
+    Scan();
 }
 
 void Prolog(){
@@ -317,6 +361,7 @@ void Epilog(){
 //write header info
 void Header(){
 	printf("WARMST\tEQU $A01E\n");
+    EmitLn("LIB TINYLIB");
 }
 
 //Recognize and Translate a Relational "Equals"
@@ -329,26 +374,46 @@ void Equals(){
 
 //Recognize and Translate a Relational "Not Equals"
 void NotEquals(){
-    Match('#');
+    Match('>');
     Expression();
     PopCompare();
     SetNEqual();
 }
 
+//Recognize and Translate a Relational "Less Than or Equal"
+void LessOrEqual(){
+    Match('=');
+    Expression();
+    PopCompare();
+    SetLessOrEqual();
+}
+
 //Recognize and Translate a Relational "Less Than"
 void Less(){
     Match('<');
-    Expression();
-    PopCompare();
-    SetLess();
+    if(Look == '=') LessOrEqual();
+    else if(Look == '>') NotEquals();
+    else {
+        Expression();
+        PopCompare();
+        SetLess();
+    }
 }
 
 //Recognize and Translate a Relational "Greater Than"
 void Greater(){
     Match('>');
-    Expression();
-    PopCompare();
-    SetGreater();
+    if(Look == '='){
+        Match('=');
+        Expression();
+        PopCompare();
+        SetGreaterOrEqual();
+    }
+    else{
+        Expression();
+        PopCompare();
+        SetGreater();
+    }
 }
 
 //Parse and Translate a Relation
@@ -413,14 +478,14 @@ void BoolExpression(){
     }
 }
 
-void Alloc(char name){
+void Alloc(char *name){
     if(InTable(name)) {
         char buf[MAX_STR_LEN];
-        snprintf(buf, sizeof(buf), "Duplicate Variable Name : %c", name);
+        snprintf(buf, sizeof(buf), "Duplicate Variable Name : %s", name);
         Abort(buf);
     }
-    ST[name-'A'] = 'v';
-    printf("%c :\tDC ", name);
+    AddEntry(name, 'v');
+    printf("%s :\tDC ", name);
     if(Look == '='){
         Match('=');
         if(Look == '-') {
@@ -436,30 +501,32 @@ void Alloc(char name){
 
 //Process a Data Declaration
 void Decl(){
-    Match('v');
-    char name = GetName();
-    Alloc(name);
+    GetName();
+    char *val = malloc(sizeof(char) * (TOKEN_LEN + 1));
+    strcpy(val, Value);
+    Alloc(val);
     while(Look == ','){
         Match(',');
-        name = GetName();
-        Alloc(name);
+        GetName();
+        strcpy(val, Value);
+        Alloc(val);
     }
 }
 
 //Parse and Translate Global Declarations
 void TopDecls(){
-    NewLine();
-    while(Look != 'b'){
-        printf("Look = %c", Look);
-        switch(Look){
+    Scan();
+    while(Token != 'b'){
+        switch(Token){
             case 'v' : Decl(); break;
             default :{
-                        char buf[MAX_STR_LEN];
-                        snprintf(buf, sizeof(buf), "Unrecognized keyword : %c", Look);
-                        Abort(buf);
-                     }
+                char buf[MAX_STR_LEN];
+                snprintf(buf, sizeof(buf), "Unrecognized keyword : %c", Token);
+                Abort(buf);
+            }
         }
-        NewLine();
+        Scan();
+        printf("inside TopDecls : token = %c\tvalue = %s\n", Token, Value);
     }
 }
 
@@ -476,8 +543,8 @@ void Factor(){
         LoadConst(num);
     }
     else{
-        char name = GetName();
-        LoadVar(name);
+        GetName();
+        LoadVar(Value);
     }
 }
 
@@ -568,16 +635,41 @@ void Expression(){
     }
 }
 
+//Process a Write Statement
+void DoWrite(){
+    Match('(');
+    Expression();
+    WriteVar();
+    while(Look == ','){
+        Match(',');
+        Expression();
+        WriteVar();
+    }
+    Match(')');
+}
+
+//Process a Read Statement
+void DoRead(){
+    Match('(');
+    GetName();
+    ReadVar();
+    while(Look == ','){
+        Match(',');
+        GetName();
+        ReadVar();
+    }
+    Match(')');
+}
+
 //Parse and Translate a WHILE Statement
 void DoWhile(){
-    Match('w');
     char *L1 = NewLabel();
     char *L2 = NewLabel();
     Postlabel(L1);
     BoolExpression();
     BranchFalse(L2);
     Block();
-    Match('e');
+    MatchString("ENDWHILE");
     Branch(L1);
     Postlabel(L2);
 }
@@ -586,24 +678,24 @@ void DoWhile(){
 void DoIf(){
     char *L1 = NewLabel();
     char *L2 = L1;
-    Match('i');
     BoolExpression();
     BranchFalse(L1);
     Block();
-    if(Look == 'l'){
-        Match('l');
+    if(Token == 'l'){
         L2 = NewLabel();
         Branch(L2);
         Postlabel(L1);
         Block();
     }
     Postlabel(L2);
-    Match('e');
+    MatchString("ENDIF");
 }
 
 //Parse and Translate an Assignment Statement
 void Assignment(){
-    char name = GetName();
+    printf("inside assignment : token = %c\tvalue = %s\n", Token, Value);
+    char *name = malloc(sizeof(char) * (TOKEN_LEN + 1));
+    strcpy(name, Value);
     Match('=');
     BoolExpression();
     Store(name);
@@ -611,25 +703,32 @@ void Assignment(){
 
 //Parse and Translate a Block of Statements
 void Block(){
-    while(Look != 'e' && Look != 'l'){
-        if(Look == 'i') DoIf();
-        else if(Look == 'w') DoWhile();
-        else Assignment();
+    Scan();
+    while(Token != 'e' && Token != 'l'){
+        printf("inside block : token = %c\tvalue = %s\n", Token, Value);
+        switch(Token){
+            case 'i' : DoIf(); break;
+            case 'w' : DoWhile(); break;
+            case 'R' : DoRead(); break;
+            case 'W' : DoWrite(); break;
+            default : Assignment();    
+        }
+        Scan();
     }
 }
 
 //Parse and Translate a Main Program
 void Main(){
-    Match('b');
+    MatchString("BEGIN");
     Prolog();
     Block();
-    Match('e');
+    MatchString("END");
     Epilog();
 }
 
 //Parse and Translate a Program
 void Prog(){
-	Match('p');
+	MatchString("PROGRAM");
 	Header();
     TopDecls();
 	Main();
