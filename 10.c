@@ -25,6 +25,50 @@ void Block();
 void NewLine();
 void SkipWhite();
 
+/*functions to handle storing of 
+pointers to heap and freeing them later*/
+
+//Node to hold references of labels to be freed later
+typedef struct node{
+    char *label;
+    struct node *next;
+}Node;
+
+Node *allocList;
+
+void CreateList(){
+    allocList = malloc(sizeof(Node));
+    if(allocList == NULL) 
+        printf("could not create allocList\n");
+    else{
+        allocList->label = NULL;
+        allocList->next = NULL;
+    }
+}
+
+void AppendNode(char *label){
+    Node *new = malloc(sizeof(Node));
+    if(new == NULL)
+        printf("could not create node\n");
+    else{
+        new->label = label;
+        new->next = allocList->next;
+        allocList->next = new;
+    }
+}
+
+void DeleteList(){
+    while(allocList->next != NULL){
+        Node *temp = allocList->next;
+        allocList->next = temp->next;
+        free(temp->label);
+        free(temp);
+    }
+    free(allocList);
+}
+
+/**/
+
 void GetChar(){
     Look = getchar();
 }
@@ -325,6 +369,11 @@ void SkipWhite(){
 char *NewLabel(){
     static int count = 0;
     char *label = malloc(sizeof(char) * LABEL_SIZE);
+    if(label == NULL){
+        printf("could not create new label\n");
+        exit(1);
+    }
+    AppendNode(label);
     snprintf(label, LABEL_SIZE, "L%d", count);
     count++;
     return label;
@@ -503,6 +552,11 @@ void Alloc(char *name){
 void Decl(){
     GetName();
     char *val = malloc(sizeof(char) * (TOKEN_LEN + 1));
+    if(val == NULL){
+        printf("could not create value\n");
+        exit(1);
+    }
+    AppendNode(val);
     strcpy(val, Value);
     Alloc(val);
     while(Look == ','){
@@ -526,7 +580,6 @@ void TopDecls(){
             }
         }
         Scan();
-        printf("inside TopDecls : token = %c\tvalue = %s\n", Token, Value);
     }
 }
 
@@ -693,8 +746,12 @@ void DoIf(){
 
 //Parse and Translate an Assignment Statement
 void Assignment(){
-    printf("inside assignment : token = %c\tvalue = %s\n", Token, Value);
     char *name = malloc(sizeof(char) * (TOKEN_LEN + 1));
+    if(name == NULL){
+        printf("could not create name\n");
+        exit(1);
+    }
+    AppendNode(name);
     strcpy(name, Value);
     Match('=');
     BoolExpression();
@@ -705,7 +762,6 @@ void Assignment(){
 void Block(){
     Scan();
     while(Token != 'e' && Token != 'l'){
-        printf("inside block : token = %c\tvalue = %s\n", Token, Value);
         switch(Token){
             case 'i' : DoIf(); break;
             case 'w' : DoWhile(); break;
@@ -737,6 +793,8 @@ void Prog(){
 
 int main(){
     Init(); 
+    CreateList();
     Prog();  
+    DeleteList();
     return 0;
 }

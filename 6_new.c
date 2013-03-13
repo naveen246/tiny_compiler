@@ -38,10 +38,10 @@ void AppendNode(char *label){
 
 void DeleteList(){
     while(list->next != NULL){
-    Node *temp = list->next;
-    free(temp->label);
-    list->next = temp->next;
-    free(temp);
+        Node *temp = list->next;
+        free(temp->label);
+        list->next = temp->next;
+        free(temp);
     }
     free(list);
 }
